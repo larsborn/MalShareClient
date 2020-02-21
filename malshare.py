@@ -176,7 +176,7 @@ if __name__ == '__main__':
         help='Specify a SHA256, MD5 or SHA1 hash. Corresponding sample will be downloaded from MalShare if present '
              'and stored in the current directory'
     )
-    download_parser.add_argument('hash', help='Hex-encoded form of SHA256, MD5 or SHA1 hash')
+    download_parser.add_argument('hashes', nargs='+', help='Hex-encoded form of SHA256, MD5 or SHA1 hashes')
     download_parser.add_argument('--file-name', help='use this file name instead of hash')
 
     upload_parser = subparsers.add_parser(
@@ -208,18 +208,25 @@ if __name__ == '__main__':
     api = MalShareApi(args.base_url, args.api_key, args.user_agent)
     try:
         if args.command == 'download':
-            hash_to_download = args.hash.strip()
-            target_file_name = hash_to_download if args.file_name is None else args.file_name
-            if os.path.exists(target_file_name):
-                logger.info(F'File with name {target_file_name} already exists, skipping.')
-            else:
-                download_data = api.download(hash_to_download)
-                if download_data is None:
-                    logger.error(F'File with hash {hash_to_download} not found.')
+            for i, hash_to_download in enumerate(args.hashes):
+                hash_to_download = hash_to_download.strip()
+                if args.file_name:
+                    target_file_name = args.file_name
+                    if args.file_name and len(args.hashes) > 1:
+                        target_file_name = F'{target_file_name}-{i}'
                 else:
-                    with open(target_file_name, 'wb') as fp:
-                        fp.write(download_data)
-                    logger.info(F'Downloaded {len(download_data)} bytes.')
+                    target_file_name = hash_to_download
+
+                if os.path.exists(target_file_name):
+                    logger.info(F'File with name {target_file_name} already exists, skipping.')
+                else:
+                    download_data = api.download(hash_to_download)
+                    if download_data is None:
+                        logger.error(F'File with hash {hash_to_download} not found.')
+                    else:
+                        with open(target_file_name, 'wb') as fp:
+                            fp.write(download_data)
+                        logger.info(F'Downloaded {len(download_data)} bytes to {target_file_name}.')
         elif args.command == 'upload':
             if args.bulk:
                 digests = {}
