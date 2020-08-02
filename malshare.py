@@ -237,9 +237,12 @@ if __name__ == '__main__':
                             digests[source_file_name] = Digests.from_file_name(source_file_name)
                 logger.debug(F'Checking existence of {len(digests)} hashes.')
                 existing = api.check_hashes([digest.sha256 for digest in digests.values()])
-                for source_file_name, current in digests.items():
-                    if current in existing:
-                        continue
+                file_names_to_upload = [
+                    source_file_name for source_file_name, current_hash in digests.items()
+                    if current_hash not in existing
+                ]
+                logger.debug(F'Uploading {len(file_names_to_upload)} files now.')
+                for source_file_name in file_names_to_upload:
                     logger.debug(F'Uploading "{source_file_name}"...')
                     with open(source_file_name, 'rb') as fp:
                         api.upload(fp.read())
