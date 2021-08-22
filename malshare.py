@@ -125,7 +125,7 @@ class MalShareApi:
             files={'upload': upload_data}
         )
         if response.status_code == 500:
-            raise Api500Exception(response.content)
+            raise Api500Exception(response.content.decode('utf-8'))
         if response.status_code != 200:
             raise ApiException(F'Status-Code: {response.status_code}: {response.content}')
         return response.content
@@ -267,7 +267,7 @@ if __name__ == '__main__':
                                 else:
                                     logger.error(F'Unknown error uploading "{source_file_name}": {upload_response}')
                             except Api500Exception as e:
-                                logger.error(F'While uploading {source_file_name}: {str(e)}')
+                                logger.error(F'While uploading {source_file_name}: {str(e).encode("utf-8")}')
                         else:
                             logger.error(F'Cannot find file with name "{source_file_name}". Skipping.')
         elif args.command == 'url':
