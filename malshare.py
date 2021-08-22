@@ -114,9 +114,9 @@ class MalShareApi:
             if response.content.startswith(b'Sample not found by hash'):
                 return None
             else:
-                raise ApiException(F'Status-Code: {response.status_code}: {response.content}')
+                raise ApiException(F'Status-Code: {response.status_code}: {response.content.decode("utf-8")}')
         elif response.status_code != 200:
-            raise ApiException(F'Status-Code: {response.status_code}: {response.content}')
+            raise ApiException(F'Status-Code: {response.status_code}: {response.content.decode("utf-8")}')
         return response.content
 
     def details(self, sample_hash):
@@ -129,9 +129,9 @@ class MalShareApi:
             if response.json()['ERROR']['MESSAGE'] == 'Sample not found':
                 return None
             else:
-                raise ApiException(F'Status-Code: {response.status_code}: {response.content}')
+                raise ApiException(F'Status-Code: {response.status_code}: {response.content.decode("utf-8")}')
         elif response.status_code != 200:
-            raise ApiException(F'Status-Code: {response.status_code}: {response.content}')
+            raise ApiException(F'Status-Code: {response.status_code}: {response.content.decode("utf-8")}')
         return response.json()
 
     def upload(self, upload_data):
@@ -142,7 +142,7 @@ class MalShareApi:
         if response.status_code == 500:
             raise Api500Exception(response.content.decode('utf-8'))
         if response.status_code != 200:
-            raise ApiException(F'Status-Code: {response.status_code}: {response.content}')
+            raise ApiException(F'Status-Code: {response.status_code}: {response.content.decode("utf-8")}')
         return response.content
 
     def check_hashes(self, sample_hashes: typing.List[str]) -> typing.List[Digests]:
@@ -151,7 +151,7 @@ class MalShareApi:
             data='\n'.join(sample_hashes)
         )
         if response.status_code != 200:
-            raise ApiException(F'Status-Code: {response.status_code}: {response.content}')
+            raise ApiException(F'Status-Code: {response.status_code}: {response.content.decode("utf-8")}')
         return [Digests(row['sha256'], row['md5'], row['sha1']) for row in response.json()]
 
     def download_url(self, url: str) -> Guid:
@@ -160,7 +160,7 @@ class MalShareApi:
             data={'url': url}
         )
         if response.status_code != 200:
-            raise ApiException(F'Status-Code: {response.status_code}: {response.content}')
+            raise ApiException(F'Status-Code: {response.status_code}: {response.content.decode("utf-8")}')
         return Guid(response.json()['guid'])
 
     def download_status(self, guid: Guid) -> DownloadUrlStatus:
@@ -172,7 +172,7 @@ class MalShareApi:
             return DownloadUrlStatus.UNKNOWN
 
         if response.status_code != 200:
-            raise ApiException(F'Status-Code: {response.status_code}: {response.content}')
+            raise ApiException(F'Status-Code: {response.status_code}: {response.content.decode("utf-8")}')
         return DownloadUrlStatus.from_string(response.json()['status'])
 
 
