@@ -163,7 +163,7 @@ class MalShareApi:
             raise ApiException(F'Status-Code: {response.status_code}: {response.content}')
         return Guid(response.json()['guid'])
 
-    def download_status(self, guid: Guid) -> int:
+    def download_status(self, guid: Guid) -> DownloadUrlStatus:
         try:
             response = self.session.get(
                 F'{self.base_url}?api_key={self.api_key}&action=download_url_check&guid={guid.value}'
@@ -171,7 +171,6 @@ class MalShareApi:
         except requests.exceptions.ConnectionError:
             return DownloadUrlStatus.UNKNOWN
 
-        print(response.json())
         if response.status_code != 200:
             raise ApiException(F'Status-Code: {response.status_code}: {response.content}')
         return DownloadUrlStatus.from_string(response.json()['status'])
