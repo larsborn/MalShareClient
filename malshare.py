@@ -82,6 +82,10 @@ class ApiException(Exception):
     pass
 
 
+class TooLargeException(ApiException):
+    pass
+
+
 class ApiKeyInvalidException(ApiException):
     pass
 
@@ -141,7 +145,9 @@ class MalShareApi:
         )
         if response.status_code == 500:
             raise Api500Exception(response.content.decode('utf-8'))
-        if response.status_code != 200:
+        elif response.status_code == 413:
+            raise TooLargeException()
+        elif response.status_code != 200:
             raise ApiException(F'Status-Code: {response.status_code}: {response.content.decode("utf-8")}')
         return response.content
 
@@ -264,7 +270,10 @@ if __name__ == '__main__':
                 for source_file_name in file_names_to_upload:
                     logger.debug(F'Uploading "{source_file_name}"...')
                     with open(source_file_name, 'rb') as fp:
-                        api.upload(fp.read())
+                        try:
+                            api.upload(fp.read())
+                        except TooLargeException:
+                            logger.error(F'Cannot upload {source_file_name}: file too large')
             else:
                 for pattern in args.file_names:
                     for source_file_name in glob.glob(pattern):
@@ -285,6 +294,8 @@ if __name__ == '__main__':
                                     logger.info(F'Successfully uploaded "{source_file_name}" (SHA256: {current_hash}).')
                                 else:
                                     logger.error(F'Unknown error uploading "{source_file_name}": {upload_response}')
+                            except TooLargeException:
+                                logger.error(F'Cannot upload {source_file_name}: file too large')
                             except Api500Exception as e:
                                 logger.error(F'While uploading {source_file_name}: {str(e).encode("utf-8")}')
                         else:
