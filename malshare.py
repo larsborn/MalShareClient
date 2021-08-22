@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import requests
 import argparse
 import logging
 import os
@@ -10,7 +9,11 @@ import time
 import typing
 from enum import Enum
 
-__version__ = '1.0.0.'
+import requests
+import requests.adapters
+import requests.exceptions
+
+__version__ = '1.1.0'
 
 
 class Guid:
@@ -60,6 +63,9 @@ class DownloadUrlStatus(Enum):
     # job finished
     FINISHED = 4
 
+    # unknown status
+    UNKNOWN = 5
+
     @staticmethod
     def from_string(status: str):
         if status == 'missing':
@@ -84,11 +90,20 @@ class Api500Exception(ApiException):
     pass
 
 
+class FixedTimeoutAdapter(requests.adapters.HTTPAdapter):
+    def send(self, *pargs, **kwargs):
+        if kwargs['timeout'] is None:
+            kwargs['timeout'] = 10
+        return super(FixedTimeoutAdapter, self).send(*pargs, **kwargs)
+
+
 class MalShareApi:
     def __init__(self, base_url, api_key, user_agent):
         self.base_url = base_url
         self.api_key = api_key
         self.session = requests.session()
+        self.session.mount('https://', FixedTimeoutAdapter())
+        self.session.mount('http://', FixedTimeoutAdapter())
         self.session.headers = {'User-Agent': user_agent}
 
     def download(self, sample_hash):
@@ -148,10 +163,15 @@ class MalShareApi:
             raise ApiException(F'Status-Code: {response.status_code}: {response.content}')
         return Guid(response.json()['guid'])
 
-    def download_status(self, guid: Guid):
-        response = self.session.get(
-            F'{self.base_url}?api_key={self.api_key}&action=download_url_check&guid={guid.value}'
-        )
+    def download_status(self, guid: Guid) -> int:
+        try:
+            response = self.session.get(
+                F'{self.base_url}?api_key={self.api_key}&action=download_url_check&guid={guid.value}'
+            )
+        except requests.exceptions.ConnectionError:
+            return DownloadUrlStatus.UNKNOWN
+
+        print(response.json())
         if response.status_code != 200:
             raise ApiException(F'Status-Code: {response.status_code}: {response.content}')
         return DownloadUrlStatus.from_string(response.json()['status'])
