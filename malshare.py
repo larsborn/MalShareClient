@@ -5,6 +5,7 @@ import os
 import glob
 import hashlib
 import platform
+import re
 import time
 import typing
 from enum import Enum
@@ -218,6 +219,11 @@ if __name__ == '__main__':
     upload_parser.add_argument('url', help='URL to download. Will be touched by the service.')
     upload_parser.add_argument('--poll-sleep', help='Seconds between polls.', default=5)
 
+    scrape_parser = subparsers.add_parser(
+        'scrape',
+        help='Scrapes hashes from clipboard and tries to download them from MalShare'
+    )
+
     parser.add_argument(
         '--base-url', help='Overwrite URL',
         default=os.getenv('MALSHARE_BASE_URL', 'https://malshare.com/api.php')
@@ -309,6 +315,45 @@ if __name__ == '__main__':
                 if current_status == DownloadUrlStatus.FINISHED:
                     break
                 time.sleep(args.poll_sleep)
+        elif args.command == 'scrape':
+            md5_re = re.compile(r'\b[\da-f]{32}\b', flags=re.IGNORECASE)
+            sha256_re = re.compile(r'\b[\da-f]{64}\b', flags=re.IGNORECASE)
+            sha1_re = re.compile(r'\b[\da-f]{40}\b', flags=re.IGNORECASE)
+
+            try:
+                import pyperclip  # noqa
+            except ModuleNotFoundError:
+                logger.error('Cannot read from clipboard, you need to install pyperclip: pip install pyperclip')
+                exit(1)
+            data = pyperclip.paste()
+            hashes = set()
+            for r in [md5_re, sha1_re, sha256_re]:
+                for match in r.findall(data):
+                    hashes.add(match)
+            logger.info(F'{len(hashes)} found in clipboard, checking existence...')
+            sha256s = set()
+            existing = set()
+            for h in sorted(list(hashes)):
+                if h in existing:
+                    continue
+                details = api.details(h)
+                if details:
+                    logger.info(F'{h} exists on MalShare.')
+                    sha256s.add(details['SHA256'])
+                    existing.add(details['SHA256'])
+                    existing.add(details['MD5'])
+                    existing.add(details['SHA1'])
+                else:
+                    logger.info(F'{h} does not exist on MalShare.')
+
+            logger.info(F'{len(sha256s)} samples exist on MalShare, downloading...')
+            for sha256 in sorted(list(sha256s)):
+                if os.path.exists(sha256):
+                    continue
+                with open(sha256, 'wb') as fp:
+                    sample = api.download(sha256)
+                    fp.write(sample)
+                logger.info(F'Wrote {len(sample)} bytes to {sha256}.')
 
     except ApiKeyInvalidException as e:
         logger.exception(e)
