@@ -6,6 +6,7 @@ import glob
 import hashlib
 import platform
 import re
+import sys
 import time
 import typing
 from enum import Enum
@@ -202,7 +203,9 @@ if __name__ == '__main__':
         help='Specify a SHA256, MD5 or SHA1 hash. Corresponding sample will be downloaded from MalShare if present '
              'and stored in the current directory'
     )
-    download_parser.add_argument('hashes', nargs='+', help='Hex-encoded form of SHA256, MD5 or SHA1 hashes')
+    download_parser.add_argument(
+        'hashes', nargs='*', help='Hex-encoded form of SHA256, MD5 or SHA1 hashes', default=sys.stdin
+    )
     download_parser.add_argument('--file-name', help='use this file name instead of hash')
 
     upload_parser = subparsers.add_parser(
@@ -280,6 +283,8 @@ if __name__ == '__main__':
                             api.upload(fp.read())
                         except TooLargeException:
                             logger.error(F'Cannot upload {source_file_name}: file too large')
+                        except Exception as e:
+                            logger.exception(e)
             else:
                 for pattern in args.file_names:
                     for source_file_name in glob.glob(pattern):
